@@ -1,0 +1,14 @@
+body {
+  margin: 0;
+  background: #0e0e12;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#game {
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+}
