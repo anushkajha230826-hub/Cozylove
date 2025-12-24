@@ -56,7 +56,7 @@ function hit(a, b) {
 
 /* DRAW CHARACTER SHAPES */
 function drawPlayer() {
-  // Monkey: circle body + ears
+  // Monkey: brown circle body + ears
   ctx.fillStyle = "#a0522d";
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
@@ -64,8 +64,8 @@ function drawPlayer() {
 
   // Ears
   ctx.beginPath();
-  ctx.arc(player.x - player.r*0.6, player.y - player.r*0.6, player.r*0.3, 0, Math.PI * 2);
-  ctx.arc(player.x + player.r*0.6, player.y - player.r*0.6, player.r*0.3, 0, Math.PI * 2);
+  ctx.arc(player.x - player.r*0.6, player.y - player.r*0.6, player.r*0.3, 0, Math.PI*2);
+  ctx.arc(player.x + player.r*0.6, player.y - player.r*0.6, player.r*0.3, 0, Math.PI*2);
   ctx.fill();
 }
 
@@ -96,9 +96,12 @@ function drawHeart(x, y, r) {
 function loop() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // Floor (gradient)
-  ctx.fillStyle = "linear-gradient(to bottom, #a0d8f1, #ffffff)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Floor gradient
+  const floorGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  floorGradient.addColorStop(0, "#a0d8f1");
+  floorGradient.addColorStop(1, "#ffffff");
+  ctx.fillStyle = floorGradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Draw heart
   if (!heart.collected) drawHeart(heart.x, heart.y, heart.r);
@@ -107,8 +110,24 @@ function loop() {
   drawPartner();
   drawPlayer();
 
-  // Collision
+  // Collision with heart
   if (!heart.collected && hit(player, heart)) {
+    heart.collected = true;
+    collectSound.play();
+
+    // Sparkle effect
+    for (let i=0;i<8;i++){
+      setTimeout(() => {
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(player.x + Math.random()*50 - 25, player.y + Math.random()*50 - 25, 5, 5);
+      }, i*50);
+    }
+  }
+
+  requestAnimationFrame(loop);
+}
+
+loop();  if (!heart.collected && hit(player, heart)) {
     heart.collected = true;
     collectSound.play();
     // Sparkle effect (simple circle)
