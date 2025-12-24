@@ -7,6 +7,7 @@ function resize() {
   const isLandscape = window.innerWidth > window.innerHeight;
   notice.style.display = isLandscape ? "none" : "flex";
 
+  // Make canvas always fill screen
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 }
@@ -30,7 +31,7 @@ assets.heart.src = "assets/images/heart.png";
 assets.sparkle.src = "assets/images/sparkle.png";
 
 /* AUDIO */
-const ambience = new Audio("assets/audio/ambience.mp3");
+const ambience = new Audio("assets/audio/location_ambience.mp3.mp3");
 ambience.loop = true;
 ambience.volume = 0.35;
 
@@ -91,17 +92,51 @@ for (let key in assets) {
   assets[key].onload = () => {
     loadedImages++;
     if (loadedImages === totalImages) {
-      loop(); // Start game loop only when all images loaded
+      // Start game after images loaded
+      drawInitialMap();
+      loop();
     }
+  };
+}
+
+/* DRAW INITIAL MAP SCALED PROPERLY */
+function drawInitialMap() {
+  // Scale map to fill width but maintain aspect ratio
+  const mapAspect = assets.map.width / assets.map.height;
+  let drawWidth = canvas.width;
+  let drawHeight = canvas.width / mapAspect;
+
+  if (drawHeight < canvas.height) {
+    drawHeight = canvas.height;
+    drawWidth = canvas.height * mapAspect;
   }
+
+  ctx.drawImage(
+    assets.map,
+    0, 0, assets.map.width, assets.map.height,
+    0, 0, drawWidth, drawHeight
+  );
 }
 
 /* GAME LOOP */
 function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw map stretched to screen
-  ctx.drawImage(assets.map, 0, 0, canvas.width, canvas.height);
+  // Draw map stretched with aspect ratio
+  const mapAspect = assets.map.width / assets.map.height;
+  let drawWidth = canvas.width;
+  let drawHeight = canvas.width / mapAspect;
+
+  if (drawHeight < canvas.height) {
+    drawHeight = canvas.height;
+    drawWidth = canvas.height * mapAspect;
+  }
+
+  ctx.drawImage(
+    assets.map,
+    0, 0, assets.map.width, assets.map.height,
+    0, 0, drawWidth, drawHeight
+  );
 
   // Draw heart collectible
   if (!heart.collected) {
@@ -109,6 +144,22 @@ function loop() {
   }
 
   // Draw partner
+  ctx.drawImage(assets.partner, partner.x, partner.y, partner.size, partner.size);
+
+  // Draw player
+  ctx.drawImage(assets.player, player.x, player.y, player.size, player.size);
+
+  // Collision
+  if (!heart.collected && hit(player, heart)) {
+    heart.collected = true;
+    collectSound.play();
+
+    // Sparkle effect
+    ctx.drawImage(assets.sparkle, player.x, player.y - 30, 80, 80);
+  }
+
+  requestAnimationFrame(loop);
+  }  // Draw partner
   ctx.drawImage(assets.partner, partner.x, partner.y, partner.size, partner.size);
 
   // Draw player
