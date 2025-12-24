@@ -1,219 +1,118 @@
-const config = {
-  type: Phaser.AUTO,
-  parent: 'game',
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const notice = document.getElementById("rotateNotice");
 
-  // IMPORTANT: RESIZE MODE
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  },
+/* RESIZE + LANDSCAPE */
+function resize() {
+  const isLandscape = window.innerWidth > window.innerHeight;
+  notice.style.display = isLandscape ? "none" : "flex";
 
-  physics: {
-    default: 'arcade',
-    arcade: {
-      gravity: { y: 0 },
-      debug: false
-    }
-  },
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 300));
+resize();
 
-  scene: {
-    preload,
-    create,
-    update
-  }
+/* ASSETS */
+const assets = {
+  map: new Image(),
+  player: new Image(),
+  partner: new Image(),
+  heart: new Image(),
+  sparkle: new Image()
 };
 
-new Phaser.Game(config);
+assets.map.src = "assets/images/map.png";
+assets.player.src = "assets/images/monkey.png";
+assets.partner.src = "assets/images/penguin.png";
+assets.heart.src = "assets/images/heart.png";
+assets.sparkle.src = "assets/images/sparkle.png";
 
-let player;
-let partner;
-let heart;
-let cursors;
-let walkSound;
+/* AUDIO */
+const ambience = new Audio("assets/audio/ambience.mp3");
+ambience.loop = true;
+ambience.volume = 0.35;
 
-function preload() {
+const walkSound = new Audio("assets/audio/walk.mp3");
+walkSound.loop = true;
+walkSound.volume = 0.2;
 
-  // IMAGES
-  this.load.image('map', 'assets/images/map.png');
-  this.load.image('player', 'assets/images/monkey.png');
-  this.load.image('partner', 'assets/images/penguin.png');
-  this.load.image('heart', 'assets/images/heart.png');
-  this.load.image('sparkle', 'assets/images/sparkle.png');
+const collectSound = new Audio("assets/audio/collect.mp3");
 
-  // AUDIO
-  this.load.audio('bgm', 'assets/audio/bg.mp3');
-  this.load.audio('walk', 'assets/audio/walk.mp3');
-  this.load.audio('collect', 'assets/audio/sparkle.mp3');
-  this.load.audio('emotion', 'assets/audio/emotion.mp3');
-}
-
-function create() {
-
-  // Camera bounds = visible screen
-  this.cameras.main.setBounds(
-    0,
-    0,
-    this.scale.width,
-    this.scale.height
-  );
-
-  // Background map (centered properly)
-  this.map = this.add.image(
-    this.scale.width / 2,
-    this.scale.height / 2,
-    'map'
-  ).setScale(2);
-
-  // Background music
-  this.sound.add('bgm', {
-    loop: true,
-    volume: 0.35
-  }).play();
-
-  // Walk sound (safe)
-  walkSound = this.sound.add('walk', {
-    loop: true,
-    volume: 0.25
-  });
-
-  // Player (Monkey)
-  player = this.physics.add.sprite(
-    this.scale.width / 2,
-    this.scale.height / 2 + 60,
-    'player'
-  )
-  .setScale(0.25)
-  .setCollideWorldBounds(true);
-
-  // Partner (Penguin)
-  partner = this.add.sprite(
-    this.scale.width / 2,
-    this.scale.height / 2 - 60,
-    'partner'
-  ).setScale(0.22);
-
-  // Collectible heart
-  heart = this.physics.add.sprite(
-    this.scale.width / 2 + 120,
-    this.scale.height / 2,
-    'heart'
-  ).setScale(0.12);
-
-  this.physics.add.overlap(player, heart, collectHeart, null, this);
-
-  // Controls
-  cursors = this.input.keyboard.createCursorKeys();
-
-  // Touch move
-  this.input.on('pointerdown', (pointer) => {
-    this.physics.moveTo(player, pointer.x, pointer.y, 180);
-    if (!walkSound.isPlaying) walkSound.play();
-  });
-
-  this.input.on('pointerup', () => {
-    player.setVelocity(0);
-    if (walkSound.isPlaying) walkSound.stop();
-  });
-}
-
-function update() {
-
-  let moving = false;
-  player.setVelocity(0);
-
-  if (cursors.left.isDown) {
-    player.setVelocityX(-140);
-    moving = true;
-  } else if (cursors.right.isDown) {
-    player.setVelocityX(140);
-    moving = true;
+let audioStarted = false;
+document.addEventListener("touchstart", () => {
+  if (!audioStarted) {
+    ambience.play();
+    audioStarted = true;
   }
+});
 
-  if (cursors.up.isDown) {
-    player.setVelocityY(-140);
-    moving = true;
-  } else if (cursors.down.isDown) {
-    player.setVelocityY(140);
-    moving = true;
-  }
+/* GAME OBJECTS */
+const player = { x: 200, y: 200, size: 120 };
+const partner = { x: 500, y: 300, size: 120 };
+const heart = { x: 700, y: 350, size: 60, collected: false };
 
-  // Footstep sound logic
-  if (moving && !walkSound.isPlaying) walkSound.play();
-  if (!moving && walkSound.isPlaying) walkSound.stop();
+let moving = false;
 
-  // Fake depth
-  player.setDepth(player.y);
-  partner.setDepth(partner.y);
-  if (heart) heart.setDepth(heart.y);
-}
-
-function collectHeart(player, heart) {
-
-  heart.destroy();
-
-  this.sound.play('collect', { volume: 0.6 });
-  this.sound.play('emotion', { volume: 0.5 });
-
-  const sparkle = this.add.sprite(
-    player.x,
-    player.y - 30,
-    'sparkle'
-  ).setScale(0.2);
-
-  this.tweens.add({
-    targets: sparkle,
-    alpha: 0,
-    y: sparkle.y - 40,
-    duration: 800,
-    ease: 'Sine.easeOut',
-    onComplete: () => sparkle.destroy()
-  });
-}  else if (cursors.right.isDown) {
-    player.setVelocityX(140);
-    moving = true;
-  }
-
-  if (cursors.up.isDown) {
-    player.setVelocityY(-140);
-    moving = true;
-  }
-  else if (cursors.down.isDown) {
-    player.setVelocityY(140);
-    moving = true;
-  }
-
-  // WALK SOUND STATE LOGIC (NO REPEAT)
-  if (moving && !walkSound.isPlaying) {
+function startFootsteps() {
+  if (!moving) {
+    walkSound.currentTime = 0;
     walkSound.play();
+    moving = true;
   }
-
-  if (!moving && walkSound.isPlaying) {
-    walkSound.stop();
-  }
-
-  // FAKE 3D DEPTH
-  player.setDepth(player.y);
-  partner.setDepth(partner.y);
-  if (heart) heart.setDepth(heart.y);
 }
 
-function collectHeart(player, heart) {
+function stopFootsteps() {
+  walkSound.pause();
+  walkSound.currentTime = 0;
+  moving = false;
+}
 
-  heart.destroy();
+/* TOUCH MOVE */
+canvas.addEventListener("touchmove", e => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  player.x = touch.clientX - player.size / 2;
+  player.y = touch.clientY - player.size / 2;
+  startFootsteps();
+});
+canvas.addEventListener("touchend", stopFootsteps);
+canvas.addEventListener("touchcancel", stopFootsteps);
 
-  this.sound.play('collect', { volume: 0.6 });
-  this.sound.play('emotion', { volume: 0.5 });
+/* COLLISION DETECTION */
+function hit(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y) < 80;
+}
 
-  const sparkle = this.add.sprite(player.x, player.y - 30, 'sparkle')
-    .setScale(0.2)
-    .setDepth(999);
+/* GAME LOOP */
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  this.tweens.add({
-    targets: sparkle,
-    alpha: 0,
-    y: sparkle.y - 40,
-    duration: 800,
-    ease: 'Sine.easeOut',
-    onComplete: () => sparkle.destroy()
-  });
-    }
+  // Draw map
+  ctx.drawImage(assets.map, 0, 0, canvas.width, canvas.height);
+
+  // Draw heart
+  if (!heart.collected) {
+    ctx.drawImage(assets.heart, heart.x, heart.y, heart.size, heart.size);
+  }
+
+  // Draw partner
+  ctx.drawImage(assets.partner, partner.x, partner.y, partner.size, partner.size);
+
+  // Draw player
+  ctx.drawImage(assets.player, player.x, player.y, player.size, player.size);
+
+  // Collision
+  if (!heart.collected && hit(player, heart)) {
+    heart.collected = true;
+    collectSound.play();
+
+    // Sparkle effect
+    ctx.drawImage(assets.sparkle, player.x, player.y - 30, 80, 80);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+loop();
