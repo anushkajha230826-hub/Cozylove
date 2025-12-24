@@ -13,3 +13,20 @@ body {
   width: 100vw;
   height: 100vh;
 }
+
+/* Portrait warning */
+@media screen and (orientation: portrait) {
+  body::before {
+    content: "Rotate your phone ↔";
+    color: white;
+    font-size: 22px;
+    font-family: sans-serif;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #0e0e12;
+    z-index: 999;
+  }
+}
