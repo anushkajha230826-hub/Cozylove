@@ -6,8 +6,6 @@ const notice = document.getElementById("rotateNotice");
 function resize() {
   const isLandscape = window.innerWidth > window.innerHeight;
   notice.style.display = isLandscape ? "none" : "flex";
-
-  // Make canvas always fill screen
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 }
@@ -15,31 +13,16 @@ window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 300));
 resize();
 
-/* ASSETS */
-const assets = {
-  map: new Image(),
-  player: new Image(),
-  partner: new Image(),
-  heart: new Image(),
-  sparkle: new Image()
-};
-
-assets.map.src = "assets/images/map.png";
-assets.player.src = "assets/images/monkey.png";
-assets.partner.src = "assets/images/penguin.png";
-assets.heart.src = "assets/images/heart.png";
-assets.sparkle.src = "assets/images/sparkle.png";
-
 /* AUDIO */
-const ambience = new Audio("assets/audio/location_ambience.mp3.mp3");
+const ambience = new Audio("audio/ambience.mp3");
 ambience.loop = true;
-ambience.volume = 0.35;
+ambience.volume = 0.3;
 
-const walkSound = new Audio("assets/audio/walk.mp3");
+const walkSound = new Audio("audio/walk.mp3");
 walkSound.loop = true;
 walkSound.volume = 0.2;
 
-const collectSound = new Audio("assets/audio/collect.mp3");
+const collectSound = new Audio("audio/collect.mp3");
 
 let audioStarted = false;
 document.addEventListener("touchstart", () => {
@@ -50,65 +33,94 @@ document.addEventListener("touchstart", () => {
 });
 
 /* GAME OBJECTS */
-const player = { x: 200, y: 200, size: 120 };
-const partner = { x: 500, y: 300, size: 120 };
-const heart = { x: 700, y: 350, size: 60, collected: false };
-
+const player = { x: 100, y: 100, r: 40 };
+const partner = { x: 500, y: 300, r: 35 };
+const heart = { x: 700, y: 200, r: 20, collected: false };
 let moving = false;
-function startFootsteps() {
-  if (!moving) {
-    walkSound.currentTime = 0;
-    walkSound.play();
-    moving = true;
-  }
-}
-function stopFootsteps() {
-  walkSound.pause();
-  walkSound.currentTime = 0;
-  moving = false;
-}
 
 /* TOUCH MOVE */
 canvas.addEventListener("touchmove", e => {
   e.preventDefault();
   const touch = e.touches[0];
-  player.x = touch.clientX - player.size / 2;
-  player.y = touch.clientY - player.size / 2;
-  startFootsteps();
+  player.x = touch.clientX;
+  player.y = touch.clientY;
+  if (!moving) { walkSound.play(); moving = true; }
 });
-canvas.addEventListener("touchend", stopFootsteps);
-canvas.addEventListener("touchcancel", stopFootsteps);
+canvas.addEventListener("touchend", () => { walkSound.pause(); moving = false; });
+canvas.addEventListener("touchcancel", () => { walkSound.pause(); moving = false; });
 
 /* COLLISION DETECTION */
 function hit(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y) < 80;
+  return Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r;
 }
 
-/* WAIT UNTIL ALL IMAGES LOADED */
-let loadedImages = 0;
-const totalImages = Object.keys(assets).length;
+/* DRAW CHARACTER SHAPES */
+function drawPlayer() {
+  // Monkey: circle body + ears
+  ctx.fillStyle = "#a0522d";
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+  ctx.fill();
 
-for (let key in assets) {
-  assets[key].onload = () => {
-    loadedImages++;
-    if (loadedImages === totalImages) {
-      // Start game after images loaded
-      drawInitialMap();
-      loop();
+  // Ears
+  ctx.beginPath();
+  ctx.arc(player.x - player.r*0.6, player.y - player.r*0.6, player.r*0.3, 0, Math.PI * 2);
+  ctx.arc(player.x + player.r*0.6, player.y - player.r*0.6, player.r*0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawPartner() {
+  // Penguin: black circle with white belly
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.arc(partner.x, partner.y, partner.r, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(partner.x, partner.y + 5, partner.r*0.6, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawHeart(x, y, r) {
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.arc(x - r/2, y, r/2, 0, Math.PI*2);
+  ctx.arc(x + r/2, y, r/2, 0, Math.PI*2);
+  ctx.lineTo(x, y + r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* GAME LOOP */
+function loop() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Floor (gradient)
+  ctx.fillStyle = "linear-gradient(to bottom, #a0d8f1, #ffffff)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Draw heart
+  if (!heart.collected) drawHeart(heart.x, heart.y, heart.r);
+
+  // Draw partner & player
+  drawPartner();
+  drawPlayer();
+
+  // Collision
+  if (!heart.collected && hit(player, heart)) {
+    heart.collected = true;
+    collectSound.play();
+    // Sparkle effect (simple circle)
+    for (let i=0;i<8;i++){
+      setTimeout(()=>ctx.fillRect(player.x+Math.random()*50-25, player.y+Math.random()*50-25,5,5), i*50);
     }
-  };
+  }
+
+  requestAnimationFrame(loop);
 }
 
-/* DRAW INITIAL MAP SCALED PROPERLY */
-function drawInitialMap() {
-  // Scale map to fill width but maintain aspect ratio
-  const mapAspect = assets.map.width / assets.map.height;
-  let drawWidth = canvas.width;
-  let drawHeight = canvas.width / mapAspect;
-
-  if (drawHeight < canvas.height) {
-    drawHeight = canvas.height;
-    drawWidth = canvas.height * mapAspect;
+loop();    drawWidth = canvas.height * mapAspect;
   }
 
   ctx.drawImage(
