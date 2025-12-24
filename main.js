@@ -2,7 +2,7 @@ const config = {
   type: Phaser.AUTO,
   parent: 'game',
 
-  // LANDSCAPE SIZE
+  // LANDSCAPE CANVAS
   width: 760,
   height: 430,
 
@@ -48,43 +48,43 @@ function preload() {
 
 function create() {
 
-  // ---- SHARPNESS FIX ----
+  // Disable blur
   this.game.renderer.config.antialias = false;
 
-  // ---- MAP ----
+  // MAP
   this.add.image(380, 215, 'map')
     .setScale(2)
     .setDepth(0);
 
-  // ---- AUDIO ----
+  // BACKGROUND MUSIC
   bgm = this.sound.add('bgm', {
     loop: true,
     volume: 0.35
   });
   bgm.play();
 
+  // WALK SOUND (LOOP SAFE)
   walkSound = this.sound.add('walk', {
-    volume: 0.2,
-    loop: true
+    loop: true,
+    volume: 0.25
   });
 
-  // ---- PLAYER (MONKEY) ----
+  // PLAYER (MONKEY)
   player = this.physics.add.sprite(380, 280, 'player')
     .setScale(0.25)
     .setCollideWorldBounds(true);
 
-  // ---- PARTNER (PENGUIN) ----
+  // PARTNER (PENGUIN)
   partner = this.add.sprite(380, 160, 'partner')
     .setScale(0.22);
 
-  // ---- COLLECTIBLE ----
+  // COLLECTIBLE
   heart = this.physics.add.sprite(520, 230, 'heart')
     .setScale(0.12);
 
-  // ---- OVERLAP ----
   this.physics.add.overlap(player, heart, collectHeart, null, this);
 
-  // ---- CONTROLS ----
+  // CONTROLS
   cursors = this.input.keyboard.createCursorKeys();
 
   // TOUCH MOVE
@@ -93,46 +93,45 @@ function create() {
     if (!walkSound.isPlaying) walkSound.play();
   });
 
-  // STOP WALK SOUND
   this.input.on('pointerup', () => {
-    walkSound.stop();
     player.setVelocity(0);
+    if (walkSound.isPlaying) walkSound.stop();
   });
 }
 
 function update() {
 
+  let moving = false;
   player.setVelocity(0);
 
   if (cursors.left.isDown) {
     player.setVelocityX(-140);
-    if (!walkSound.isPlaying) walkSound.play();
+    moving = true;
   }
   else if (cursors.right.isDown) {
     player.setVelocityX(140);
-    if (!walkSound.isPlaying) walkSound.play();
+    moving = true;
   }
 
   if (cursors.up.isDown) {
     player.setVelocityY(-140);
-    if (!walkSound.isPlaying) walkSound.play();
+    moving = true;
   }
   else if (cursors.down.isDown) {
     player.setVelocityY(140);
-    if (!walkSound.isPlaying) walkSound.play();
+    moving = true;
   }
 
-  // STOP SOUND IF NO MOVEMENT
-  if (
-    !cursors.left.isDown &&
-    !cursors.right.isDown &&
-    !cursors.up.isDown &&
-    !cursors.down.isDown
-  ) {
+  // WALK SOUND STATE LOGIC (NO REPEAT)
+  if (moving && !walkSound.isPlaying) {
+    walkSound.play();
+  }
+
+  if (!moving && walkSound.isPlaying) {
     walkSound.stop();
   }
 
-  // ---- FAKE 3D DEPTH ----
+  // FAKE 3D DEPTH
   player.setDepth(player.y);
   partner.setDepth(partner.y);
   if (heart) heart.setDepth(heart.y);
@@ -157,4 +156,4 @@ function collectHeart(player, heart) {
     ease: 'Sine.easeOut',
     onComplete: () => sparkle.destroy()
   });
-}
+    }
