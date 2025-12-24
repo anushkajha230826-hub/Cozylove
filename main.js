@@ -54,7 +54,6 @@ const partner = { x: 500, y: 300, size: 120 };
 const heart = { x: 700, y: 350, size: 60, collected: false };
 
 let moving = false;
-
 function startFootsteps() {
   if (!moving) {
     walkSound.currentTime = 0;
@@ -62,7 +61,6 @@ function startFootsteps() {
     moving = true;
   }
 }
-
 function stopFootsteps() {
   walkSound.pause();
   walkSound.currentTime = 0;
@@ -85,14 +83,27 @@ function hit(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y) < 80;
 }
 
+/* WAIT UNTIL ALL IMAGES LOADED */
+let loadedImages = 0;
+const totalImages = Object.keys(assets).length;
+
+for (let key in assets) {
+  assets[key].onload = () => {
+    loadedImages++;
+    if (loadedImages === totalImages) {
+      loop(); // Start game loop only when all images loaded
+    }
+  }
+}
+
 /* GAME LOOP */
 function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw map
+  // Draw map stretched to screen
   ctx.drawImage(assets.map, 0, 0, canvas.width, canvas.height);
 
-  // Draw heart
+  // Draw heart collectible
   if (!heart.collected) {
     ctx.drawImage(assets.heart, heart.x, heart.y, heart.size, heart.size);
   }
@@ -109,6 +120,11 @@ function loop() {
     collectSound.play();
 
     // Sparkle effect
+    ctx.drawImage(assets.sparkle, player.x, player.y - 30, 80, 80);
+  }
+
+  requestAnimationFrame(loop);
+               }    // Sparkle effect
     ctx.drawImage(assets.sparkle, player.x, player.y - 30, 80, 80);
   }
 
